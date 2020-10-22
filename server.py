@@ -11,10 +11,26 @@ import sys
 import time
 from models import *
 import _pickle as pickle
-IP=socket.gethostname()
-# IP = "127.0.0.1"
+# IP=socket.gethostname()
+from kazoo.client import KazooClient
+# print(IP)
+IP = "127.0.0.1"
 PORT=8501
 
+zk = KazooClient(hosts='127.0.0.1:2181')    #如果是本地那就写127.0.0.1
+zk.start()    #与zookeeper连接
+#makepath=True是递归创建,如果不加上中间那一段，就是建立一个空的节点
+node = zk.get_children('/server/ip')
+if node == None:
+    zk.create('/server/ip',b'127.0.0.1',makepath=True)
+node = zk.get_children('/server/port')
+if node == None:
+    zk.create('/server/port',b'8501',makepath=True)
+ # 查看根节点有多少个子节点
+
+print(node)
+print(zk.get('/server')[0])
+zk.stop()
 
 class RpcData:
 
@@ -23,8 +39,17 @@ class RpcData:
         self.method = met
 
 def severCompute(server):
+    model = vgg(dataset='cifar10', depth=16, part=2)
+    pth = 'logs/model_best.pth.tar'
+    print("=> loading checkpoint '{}'".format(pth))
+    checkpoint = torch.load(pth)
+    best_prec1 = checkpoint['best_prec1']
+    model.load_state_dict(checkpoint['state_dict'])
+
+    model.eval()
     while True:
         conn, addr = server.accept()
+        st = time.time()
         data = conn.recv(4096)
         print(data)
 
@@ -38,15 +63,9 @@ def severCompute(server):
         print(revData)
 
         # 装载模型
-        model = vgg(dataset='cifar10', depth=16, part=2)
-        pth = 'logs/model_best.pth.tar'
-        print("=> loading checkpoint '{}'".format(pth))
-        checkpoint = torch.load(pth)
 
-        best_prec1 = checkpoint['best_prec1']
-        model.load_state_dict(checkpoint['state_dict'])
 
-        model.eval()
+
         # output = model(torch.from_numpy(revData))
         output = model(revData)
 
@@ -57,6 +76,8 @@ def severCompute(server):
 
         sendData = pickle.dumps(pred)
         conn.send(sendData)
+        ed = time.time()
+        print('time spent:', ed - st)
 
 
 if __name__=="__main__":

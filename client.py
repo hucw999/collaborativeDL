@@ -13,13 +13,40 @@ import time
 import _pickle as pickle
 import sys
 from models import *
+from kazoo.client import KazooClient
+# 加载模型
+
+model = vgg(dataset='cifar10', depth=16, part=1)
+pth = 'logs/model_best.pth.tar'
+print("=> loading checkpoint '{}'".format(pth))
+checkpoint = torch.load(pth)
+
+best_prec1 = checkpoint['best_prec1']
+model.load_state_dict(checkpoint['state_dict'])
+
+
+
+
+
+
+# 获取server
+
+zk = KazooClient(hosts='127.0.0.1:2181')    #如果是本地那就写127.0.0.1
+zk.start()    #与zookeeper连接
+#makepath=True是递归创建,如果不加上中间那一段，就是建立一个空的节点
+host = (str(zk.get('/server/ip')[0],encoding = "utf-8"))
+port = int(str(zk.get('/server/port')[0],encoding = "utf-8"))
+
+zk.stop()
 
 
 class ClientInf:
 
     rdb = None
 
+
     cacheResults = {}
+
 
     def getData(self):
         # 加载数据
@@ -71,33 +98,26 @@ class ClientInf:
 
     def inf(self,dat):
         # 装载模型
-        model = vgg(dataset='cifar10', depth=16, part=1)
-        pth = 'logs/model_best.pth.tar'
-        print("=> loading checkpoint '{}'".format(pth))
-        checkpoint = torch.load(pth)
-
-        best_prec1 = checkpoint['best_prec1']
-        model.load_state_dict(checkpoint['state_dict'])
 
 
         with torch.no_grad():
         # 推理
-            st = time.time()
+
+
+
             model.eval()
-            ed = time.time()
-            print('time spent:', ed - st)
-
-        # data, target = data.cuda(), target.cuda()
-        # data, target = Variable(data, volatile=True), Variable(target)
-
             output = model(dat)
+
+
+
 
         # print(sys.getsizeof(output))
         # print(sys.getsizeof(output.numpy()))
-        print(output.shape)
+        # print(output.shape)
         # pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
         # # correct += pred.eq(target.data.view_as(pred)).cpu().sum()
         # print(pred)
+
         return output
 
     def readRedis(self):
@@ -137,30 +157,37 @@ class Proxy(object):
 
         def newAttr(*args, **kwargs):  # 包装
             print("before print")
-
+            st = time.time()
             out = attr(*args, **kwargs)
+
 
             sendData = pickle.dumps(out)
 
             s = socket.socket()  # 创建 socket 对象
-            host = socket.gethostname()  # 获取本地主机名
-            port = 8501  # 设置端口号
+            # host = socket.gethostname()  # 获取本地主机名
+            # host = "127.0.0.1"
+            # port = 8501  # 设置端口号
 
             s.connect((host, port))
 
+
             s.send(sendData)
+
 
             # s.send('12'.encode())
 
             recvData = s.recv(1024)
 
-            print(recvData)
+
 
             pred = pickle.loads(recvData)
+
 
             print(pred)
 
             s.close()
+            ed = time.time()
+            print('transfer time spent:', ed - st)
 
             print("after print")
 
@@ -200,11 +227,15 @@ dat = inf.getData()
 #     output = inf.inf(data).numpy()
 #     saveData = pickle.dumps(output)
 #     inf.writeRedis(saveData,"xxx")
-st = time.time()
+
 proxy = Proxy(inf)
+st = time.time()
 proxy.inf(dat)
 ed = time.time()
 print('time spent:' ,ed-st)
+
+
+
 
 # dat = inf.getData()
 # output = inf.inf(dat).numpy()
