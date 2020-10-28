@@ -25,11 +25,13 @@ model_urls = {
 
 class VGG(nn.Module):
 
-    def __init__(self, features, num_classes=1000, init_weights=True, part=False):
+    def __init__(self, features, num_classes=1000, init_weights=True, part=0, st=0, ed=18):
         super(VGG, self).__init__()
         self.features = features
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
         self.part = part
+        self.st = st
+        self.ed = ed
         self.classifier = nn.Sequential(
             nn.Linear(512 * 7 * 7, 4096),
             nn.ReLU(True),
@@ -43,13 +45,26 @@ class VGG(nn.Module):
             self._initialize_weights()
 
     def forward(self, x):
-        x = self.features(x)
-        if self.part == True:
+        # full DNN
+        if self.part == 0:
+
+            x = self.features(x)
+            x = self.avgpool(x)
+            x = torch.flatten(x, 1)
+            x = self.classifier(x)
             return x
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.classifier(x)
-        return x
+        # first part
+        elif self.part == 1:
+            x = self.features(x)
+            return x
+        # second part
+        else:
+            x = self.features(x)
+            x = self.avgpool(x)
+            x = torch.flatten(x, 1)
+            x = self.classifier(x)
+            return x
+
 
     def _initialize_weights(self):
         for m in self.modules():
@@ -65,25 +80,30 @@ class VGG(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
 
-def make_layers(cfg, batch_norm=False,layer=17):
+def make_layers(cfg, batch_norm=False, st=0, ed=18):
     layers = []
     in_channels = 3
     layerNum = 0
     for v in cfg:
         # if layerNum >= layer:
         #     return nn.Sequential(*layers)
+
         if v == 'M':
-            layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
+            if layerNum <= ed and layerNum >= st:
+                layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
             # layerNum+=1
 
         else:
             # layerNum += 1
             conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
             if batch_norm:
-                layers += [conv2d, nn.BatchNorm2d(v), nn.ReLU(inplace=True)]
+                if layerNum <= ed and layerNum >= st:
+                    layers += [conv2d, nn.BatchNorm2d(v), nn.ReLU(inplace=True)]
             else:
-                layers += [conv2d, nn.ReLU(inplace=True)]
-            in_channels = v
+                if layerNum <= ed and layerNum >= st:
+                    layers += [conv2d, nn.ReLU(inplace=True)]
+                in_channels = v
+        layerNum += 1
     return nn.Sequential(*layers)
 
 
@@ -105,10 +125,10 @@ def _vgg(arch, cfg, batch_norm, pretrained, progress, layer,**kwargs):
     #     model.load_state_dict(state_dict)
     return model
 
-def myVgg(part, layer, pretrained, progress, **kwargs):
-    if layer == 19:
-        part = False
-    model = VGG(make_layers(cfgs['D'], batch_norm=False, layer=layer), part=part, **kwargs)
+def myVgg( part, pretrained=False, progress=True,st=0, ed=18, **kwargs):
+    # if layer == 19:
+    #     part = False
+    model = VGG(make_layers(cfgs['D'], batch_norm=False, st = st, ed = ed), part=part, **kwargs)
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls['vgg16'],
                                               progress=progress)

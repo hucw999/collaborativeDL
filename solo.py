@@ -1,5 +1,5 @@
 import socket  # 导入 socket 模块
-import redis
+# import redis
 import argparse
 import numpy as np
 import os
