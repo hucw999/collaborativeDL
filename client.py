@@ -1,5 +1,5 @@
 import socket  # 导入 socket 模块
-import redis
+# import redis
 import argparse
 import numpy as np
 import os
@@ -14,6 +14,9 @@ import _pickle as pickle
 import sys
 from models import *
 from kazoo.client import KazooClient
+
+
+
 # 加载模型
 
 model = vgg(dataset='cifar10', depth=16, part=1)
