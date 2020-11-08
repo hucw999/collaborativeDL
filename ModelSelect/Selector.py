@@ -23,10 +23,10 @@ def train(data_array):
     # 时间
     T = []
 
-    num = 3
+    num = 1
 
     # 可选的臂（根据数据）
-    numArms = 10
+    numArms = 3
     # 历史数据数
     trials = data_array.shape[0]
     # 臂特征数（根据数据）
@@ -56,8 +56,9 @@ def train(data_array):
 
             # alpha为探索程度，几种情况
             # Best Setting for Strategy 1
-            alpha = 1-(np.sqrt(t)/float(t*t))
+            # alpha = 1-(np.sqrt(t)/float(t*t))
 
+            alpha = 0.1
             # Best Setting for Strategy 2
             # i = 0.05
             # alpha = float(i) / np.sqrt(t + 1)
@@ -77,9 +78,9 @@ def train(data_array):
 
                 # 求臂的p
                 p[a] = np.matmul(theta[a].T, x_t) + alpha * np.sqrt(np.matmul(np.matmul(x_t.T, A_inv), x_t))
+                # print(p)
 
-
-
+            print(p)
             # 更新Aat，bat
             A[arm] = A[arm] + np.matmul(x_t, x_t.T)
             b[arm] = b[arm] + payoff * x_t
@@ -88,6 +89,7 @@ def train(data_array):
 
             # 选择p最大的那个臂作为推荐
             best_predicted_arm = np.argmax(p)
+            print(best_predicted_arm)
             # 推荐的臂与所给的相同，将参与CTR点击率计算
             if best_predicted_arm == arm:
                 mz = mz + 1
@@ -100,18 +102,26 @@ def train(data_array):
             # count = count + 1
             # ctr_list.append(mz / count)
             # T.append(count)
-
+    print(total_payoff)
     # print(T)
     # CTR趋势画图
     plt.xlabel("T")
     plt.ylabel("CTR")
     plt.plot(T, ctr_list)
     # 存入路径
-    plt.savefig('../data/ctrVsT/LinUCB.png')
+    # plt.savefig('../data/ctrVsT/LinUCB.png')
     plt.show()
+
+    return A, b, p
 
 if __name__ == "__main__":
     # 获取数据
-    data_array = np.loadtxt('../data/dataset.txt', dtype=int)
+    data_array = np.loadtxt('../data/devices.txt', dtype=int)
     # 训练
-    train(data_array)
+    A,b,p = train(data_array)
+
+
+
+    print("A is ", A)
+    print("b is ", b)
+    print("p is ", p)
