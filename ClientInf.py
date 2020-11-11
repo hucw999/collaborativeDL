@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torchvision import datasets, transforms
+from PIL import Image
 from models import *
 
 
@@ -23,14 +24,16 @@ class ClientInf:
 
 
     def loadModel(self):
-        self.model = myvgg.myVgg(part=1, st=0, ed=18)
+        self.model = myvgg.myVgg(part=0, st=0, ed=18)
+
+        print(self.model)
         # model = myresnet.myResnet18(part=1)
 
         pth = "../checks/vgg16-397923af.pth"
 
         checkpoint = torch.load(pth)
 
-        # model.load_state_dict(checkpoint)
+        self.model.load_state_dict(checkpoint,False)
         return
 
     def getServer(self): #sss
@@ -108,8 +111,48 @@ class ClientInf:
         # print(sys.getsizeof(output))
         # print(sys.getsizeof(output.numpy()))
         # print(output.shape)
-        # pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
+        pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
         # # correct += pred.eq(target.data.view_as(pred)).cpu().sum()
         # print(pred)
 
-        return output
+        return pred
+
+
+if __name__=="__main__":
+    cli = ClientInf()
+    cli.loadModel()
+
+    import cv2
+
+    camera_index = 0
+    cap = cv2.VideoCapture(camera_index)
+    ret, frame = cap.read()
+
+
+    val_transforms = transforms.Compose([
+        transforms.Resize(256),
+        transforms.RandomResizedCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize((.5, .5, .5), (.5, .5, .5))
+    ])
+
+
+    img = val_transforms(Image.fromarray(frame))
+
+    img = torch.unsqueeze(img, dim=0).float()
+
+    index = cli.inf(img)
+
+    import json
+
+    with open('./imgs/imagenetLabel.json') as f:
+        labels = json.load(f)
+
+
+    def class_id_to_label(i):
+        return labels[i]
+
+    print(class_id_to_label(index))
+
+    cv2.imshow('frame', frame)
+    key2 = cv2.waitKey(0)

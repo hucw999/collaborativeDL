@@ -45,7 +45,7 @@ def severCompute(server):
 
     checkpoint = torch.load(pth)
 
-    # model.load_state_dict(checkpoint)
+    model.load_state_dict(checkpoint, strict=False)
 
     model.eval()
 

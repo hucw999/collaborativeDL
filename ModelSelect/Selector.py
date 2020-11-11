@@ -2,8 +2,9 @@
 # dataset.txt数据集里面：第一列为推荐系统推荐的文章号，第二列为回报，第三列及之后都为文章特征
 import numpy as np
 import matplotlib.pyplot as plt
-
-
+from kazoo.client import KazooClient
+import json
+import pickle
 
 # 初始化
 def init(numFeatures, numArms):
@@ -120,7 +121,19 @@ if __name__ == "__main__":
     # 训练
     A,b,p = train(data_array)
 
+    A = pickle.dumps(A)
 
+    b = pickle.dumps(b)
+
+    p = pickle.dumps(p)
+
+    zk = KazooClient(hosts="10.4.10.239:2181")
+
+    zk.start()
+
+    # zk.create('/selectModel/param/A', A, makepath=True)
+    zk.set('/selectModel/param/b', b)
+    zk.set('/selectModel/param/p', p)
 
     print("A is ", A)
     print("b is ", b)

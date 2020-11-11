@@ -2,6 +2,12 @@ from ftplib import FTP
 import time
 import tarfile
 import os
+import torchvision
+import torch
+from PIL import Image
+from torchvision import datasets, transforms
+import numpy as np
+
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 from ftplib import FTP
@@ -29,3 +35,28 @@ def uploadfile(ftp, remotepath, localpath):
 if __name__ == "__main__":
   ftp = ftpconnect("127.0.0.1", "ftp***", "Guest***")
   downloadfile(ftp, "vgg16-397923af.pth", "./test/vgg16.pth")
+
+  vgg = torchvision.models.vgg16()
+  pth = "./test/vgg16.pth"
+
+  checkpoint = torch.load(pth)
+
+  vgg.load_state_dict(checkpoint)
+
+  vgg.eval()
+
+  img = Image.open('../imgs/test.jpg')
+
+  loader = transforms.Compose([
+    transforms.ToTensor()])
+
+  img = loader(img).unsqueeze(0)
+  # img = val_transforms(img)
+
+  # img = torch.unsqueeze(img, dim=0).float()
+  with torch.no_grad():
+    output = vgg(img).numpy()
+
+  output = np.argmax(output)
+
+  print(output)

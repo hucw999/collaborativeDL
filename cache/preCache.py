@@ -16,34 +16,23 @@ from models import *
 from kazoo.client import KazooClient
 # 加载模型
 from PIL import Image
+from cache.MyCache import LRUCache
 
-import resource
-soft, hard = resource.getrlimit(resource.RLIMIT_AS)
-print(soft, hard)
-resource.setrlimit(resource.RLIMIT_AS, (2964607511, hard))
 
-model = myvgg.myVgg(part=0, st=0, ed = 18)
+model = myvgg.myVgg(part=1,st=0,ed = 18)
 # model = myresnet.myResnet18(part=1)
 
-pth = "../checks/vgg16-397923af.pth"
+pth = "../../checks/vgg16-397923af.pth"
 
 checkpoint = torch.load(pth)
 
 model.load_state_dict(checkpoint, strict=False)
 
-# torchvision.models.resnet18()
+torchvision.models.resnet18()
 
 host = "127.0.0.1"
 port = 8502
-# # 获取server
-#
-# zk = KazooClient(hosts='127.0.0.1:2181')    #如果是本地那就写127.0.0.1
-# zk.start()    #与zookeeper连接
-# #makepath=True是递归创建,如果不加上中间那一段，就是建立一个空的节点
-# host = (str(zk.get('/server/ip')[0],encoding = "utf-8"))
-# port = int(str(zk.get('/server/port')[0],encoding = "utf-8"))
-#
-# zk.stop()
+
 
 
 class ClientInf:
@@ -113,20 +102,14 @@ class ClientInf:
 
             model.eval()
             output = model(dat)
+            # pred = output.data.max(1, keepdim=True)[1]
 
 
-
-
-        # print(sys.getsizeof(output))
-        # print(sys.getsizeof(output.numpy()))
-        # print(output.shape)
-        # pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-        # # correct += pred.eq(target.data.view_as(pred)).cpu().sum()
-        # print(pred)
 
         return output
 
-
+    def colInf(self,dat):
+        return dat
 
 
 # RPC远程调用
@@ -156,6 +139,7 @@ class Proxy(object):
             out = attr(*args, **kwargs)
 
 
+
             sendData = pickle.dumps(out)
             # print(sendData)
             s = socket.socket()  # 创建 socket 对象
@@ -169,17 +153,16 @@ class Proxy(object):
 
             s.send(sendData)
 
-            time.sleep(10)
-            s.send(sendData)
+            # time.sleep(10)
+            # s.send(sendData)
 
             # s.send('12'.encode())
             recvData = s.recv(1024)
 
 
 
-
             pred = pickle.loads(recvData)
-
+            # pred = pred.data.max(1, keepdim=True)[1]
 
             print(pred)
 
@@ -193,7 +176,6 @@ class Proxy(object):
             return pred
 
         return newAttr
-
 def cos_sim(vector_a, vector_b):
     """
     计算两个向量之间的余弦相似度
@@ -209,39 +191,69 @@ def cos_sim(vector_a, vector_b):
     sim = 0.5 + 0.5 * cos
     return sim
 
-inf = ClientInf()
+
+if __name__ == "__main__":
+
+    inf = ClientInf()
 
 
 
-val_transforms = transforms.Compose([
-    transforms.Resize(256),
-    transforms.RandomResizedCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize((.5, .5, .5), (.5, .5, .5))
-])
+    val_transforms = transforms.Compose([
+        transforms.Resize((224,224)),
+        # transforms.RandomResizedCrop(224),
+        # transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize((.5, .5, .5), (.5, .5, .5))
+    ])
+
+    proxy = Proxy(inf)
+    cache = LRUCache(3)
+
+    for filename in os.listdir(r"../imgs/"):
+
+        if filename.endswith('.jpg') or filename.endswith('.jpeg'):
+            img = Image.open('../imgs/' + filename)
+        else:
+            continue
+        img = val_transforms(img)
+
+        input = torch.unsqueeze(img, dim=0).float()
+        output = inf.inf(input)
+
+        outKey = torch.reshape(output,(1,512*7*7))
+
+        # print(outKey)
 
 
-
-img = Image.open('./imgs/test.jpg')
-
-img = val_transforms(img)
-
-img = torch.unsqueeze(img, dim=0).float()
-
-inf.inf(img)
-
-# output = inf.inf(img)
-
-
-# print(output.shape)
-#
 # proxy = Proxy(inf)
 # st = time.time()
 #
 #
-# proxy.inf(img)
-# ed = time.time()
-# print('time spent:' ,ed-st)
+        label = proxy.inf(input)
+        print(label)
+
+        import json
+
+        with open('../imgs/label/imagenetLabel.json') as f:
+            labels = json.load(f)
+
+
+        def class_id_to_label(i):
+            return labels[i]
+
+        label = class_id_to_label(label)
+        print(label)
+        ed = time.time()
+
+        import redis
+
+        conn = redis.Redis(host='10.4.10.228', port=6379)
+        print(pickle.dumps(outKey))
+        print(pickle.dumps(outKey))
+        print(pickle.dumps(outKey))
+        conn.hset('cache', pickle.dumps(outKey), label)
+
+        # print('time spent:' ,ed-st)
 
 
 
