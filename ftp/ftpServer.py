@@ -12,5 +12,5 @@ authorizer.add_anonymous("/home/huchuanwen/bishe/checks")
 handler = FTPHandler
 handler.authorizer = authorizer
 
-server = FTPServer(("127.0.0.1", 2121), handler)
+server = FTPServer(("0.0.0.0", 2121), handler)
 server.serve_forever()

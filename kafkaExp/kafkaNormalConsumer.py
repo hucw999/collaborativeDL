@@ -1,4 +1,4 @@
-from kafka import KafkaConsumer
+from kafka import KafkaConsumer,KafkaProducer
 import time
 import threading
 from PIL import Image
@@ -8,7 +8,7 @@ consumer = KafkaConsumer('test',
                  group_id="test_group_1",
                  bootstrap_servers=['10.4.10.239:9092'],
                  enable_auto_commit=False)
-
+producer = KafkaProducer(bootstrap_servers='10.4.10.239:9092')  # 连接kafka
 clintInf = ClientInf(0,18)
 #
 # img = Image.open('../imgs/test.jpg')
@@ -31,7 +31,7 @@ for msg in consumer:
         # print(self.name + ' consumed ' + str(msg.value))
         consumer.commit()  # 提交当前批次最新的偏移量. 会阻塞  执行完后才会下一轮poll
 
-
+        producer.send('result',b'1')
     except Exception as e:
 
         print('commit failed', str(e))

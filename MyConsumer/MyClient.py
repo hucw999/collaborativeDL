@@ -27,6 +27,18 @@ class ClientInf:
     def __init__(self, st,ed,part=0,):
         self.model = myvgg.myVgg(part=part,st=st,ed = ed)
 
+    def loadModel(self):
+        self.model = myvgg.myVgg(part=0, st=0, ed=18)
+
+        print(self.model)
+        # model = myresnet.myResnet18(part=1)
+
+        pth = "/home/huchuanwen/bishe/checks/vgg16-397923af.pth"
+
+        checkpoint = torch.load(pth)
+
+        self.model.load_state_dict(checkpoint,False)
+        return
 
     def getData(self):
         # 加载数据
