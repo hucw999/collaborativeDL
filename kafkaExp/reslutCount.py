@@ -10,6 +10,8 @@ consumer = KafkaConsumer('result',
                          )
 cnt = 0
 for msg in consumer:
+    print(cnt)
+    # print(msg)
     if cnt == 0:
         st = time.time()
     cnt += 1

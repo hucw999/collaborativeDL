@@ -15,11 +15,11 @@ from ftp.ftpClient import FTPClient
 def selectModel():
     # 配置信息
     conf = configparser.ConfigParser()
-    conf.read('../conf/inf.conf')
+    conf.read('/home/huchuanwen/bishe/collaborativeDL/conf/inf.conf')
 
     kafkaHost = conf.get("ssd.kafkaServer", "hosts")
 
-    localhost = conf.get('ssd.local','host')
+    localhost = conf.get('ssd.local', 'host')
 
     producer = KafkaProducer(bootstrap_servers=kafkaHost)  # 连接kafka
 
@@ -51,7 +51,7 @@ def selectModel():
 def inf():
 
     vgg = torchvision.models.vgg16()
-    pth = "../ftp/test/vgg16.pth"
+    pth = "/home/huchuanwen/bishe/collaborativeDL/ftp/test/vgg16.pth"
 
     checkpoint = torch.load(pth)
 
@@ -59,7 +59,7 @@ def inf():
 
     vgg.eval()
 
-    img = Image.open('../imgs/test.jpg')
+    img = Image.open('/home/huchuanwen/bishe/collaborativeDL/imgs/test.jpg')
 
     loader = transforms.Compose([
         transforms.ToTensor()])
@@ -73,7 +73,7 @@ def inf():
 
     index = np.argmax(output)
 
-    with open('../imgs/label/imagenetLabel.json') as f:
+    with open('/home/huchuanwen/bishe/collaborativeDL/imgs/label/imagenetLabel.json') as f:
         labels = json.load(f)
 
 

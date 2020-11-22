@@ -16,6 +16,8 @@ clintInf = ClientInf(0,18)
 # input = clintInf.transformData(input)
 # torch.unsqueeze(input, dim=0).float()
 # clintInf.inf(input)
+cnt = 0
+print(consumer.partitions_for_topic('test'))
 for msg in consumer:
     #     recv = "%s:%d:%d: key=%s value=%s" % (msg.topic, msg.partition, msg.offset, msg.key, msg.value)
     #
@@ -23,13 +25,18 @@ for msg in consumer:
     try:
         # 轮询一个batch 手动提交一次
         print('get msg')
+        cnt += 1
+        print(cnt)
+        # print(consumer.partitions_for_topic('test'))
         input = pickle.loads(msg.value)
         input = clintInf.transformData(input)
         input = torch.unsqueeze(input, dim=0).float()
         output = clintInf.inf(input)
         print(output)
+        time.sleep(1)
         # print(self.name + ' consumed ' + str(msg.value))
         consumer.commit()  # 提交当前批次最新的偏移量. 会阻塞  执行完后才会下一轮poll
+
 
         producer.send('result',b'1')
     except Exception as e:

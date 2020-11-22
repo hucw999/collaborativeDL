@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import os
+import time
 from torchvision.models.utils import load_state_dict_from_url
 
 
@@ -32,6 +33,7 @@ class VGG(nn.Module):
         self.part = part
         self.st = st
         self.ed = ed
+
         if part == 1:
             self.classifier = nn.Sequential()
         else:
@@ -44,6 +46,7 @@ class VGG(nn.Module):
                 nn.Dropout(),
                 nn.Linear(4096, num_classes),
             )
+
 
         if init_weights:
             self._initialize_weights()
