@@ -33,7 +33,7 @@ class ClientInf:
         print(self.model)
         # model = myresnet.myResnet18(part=1)
 
-        pth = "/home/huchuanwen/bishe/checks/vgg16-397923af.pth"
+        pth = "ftp/test/vgg16.pth"
 
         checkpoint = torch.load(pth)
 
@@ -99,12 +99,8 @@ class ClientInf:
         # 装载模型
 
 
-
-
         with torch.no_grad():
         # 推理
-
-
 
             self.model.eval()
             output = self.model(dat)

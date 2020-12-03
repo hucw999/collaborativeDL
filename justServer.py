@@ -12,26 +12,14 @@ import time
 from models import *
 import _pickle as pickle
 # IP=socket.gethostname()
+from log import KafkaLog
 from kazoo.client import KazooClient
-# print(IP)
-# IP = "127.0.0.1"
-# PORT=8501
-#
-# zk = KazooClient(hosts='127.0.0.1:2181')    #如果是本地那就写127.0.0.1
-# zk.start()    #与zookeeper连接
-# #makepath=True是递归创建,如果不加上中间那一段，就是建立一个空的节点
-# node = zk.get_children('/server/ip')
-# if node == None:
-#     zk.create('/server/ip',b'127.0.0.1',makepath=True)
-# node = zk.get_children('/server/port')
-# if node == None:
-#     zk.create('/server/port',b'8501',makepath=True)
-#  # 查看根节点有多少个子节点
-#
-# print(node)
-# print(zk.get('/server')[0])
-# zk.stop()
+from conf.getConf import *
 
+pwd = os.path.dirname(__file__)
+log = KafkaLog()
+localhost = getLocalhost()
+print(localhost)
 class RpcData:
 
     def __init__(self,tdata,met):
@@ -41,7 +29,7 @@ class RpcData:
 def severCompute(server):
     model = myvgg.myVgg(st=19,ed = 18 ,part=2)
     # model = myresnet.myResnet18(part=2)
-    pth = "../checks/vgg16-397923af.pth"
+    pth = pwd + "/ftp/test/vgg16.pth"
 
     checkpoint = torch.load(pth)
 
@@ -52,6 +40,7 @@ def severCompute(server):
     while True:
         print("start......")
         conn, adddr = server.accept()
+        print(adddr)
         total_data = b''
         num = 0
         data = conn.recv(1024)
@@ -79,10 +68,7 @@ def severCompute(server):
 
         revData = pickle.loads(total_data[0:-3])
 
-        # print('attr: ' + getattr(revData,'method'))
-        #
-        # revData = revData.tensorData
-
+        log.logSend(localhost + " get Intermediate output and start left computing")
 
         print(revData)
 
@@ -110,8 +96,9 @@ if __name__=="__main__":
 
     server=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # server.setblocking(1)
-    server.bind(("127.0.0.1", 8502))
+    server.bind((localhost, 8889))
     print("云端启动，准备接受任务")
+    log.logSend("INFO " + localhost + " is ready to collaborative inference!")
     server.listen(5)
     severCompute(server)
 

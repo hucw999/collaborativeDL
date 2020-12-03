@@ -121,6 +121,7 @@ if __name__ == "__main__":
     # 训练
     A,b,p = train(data_array)
 
+
     A = pickle.dumps(A)
 
     b = pickle.dumps(b)

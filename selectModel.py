@@ -8,33 +8,37 @@ from torchvision import transforms
 from PIL import Image
 import torchvision
 import configparser
-
+from log import KafkaLog
 from kafka import KafkaProducer
 from ftp.ftpClient import FTPClient
+import matplotlib.pyplot as plt
+
+# 配置信息
+conf = configparser.ConfigParser()
+conf.read('/home/huchuanwen/bishe/collaborativeDL/conf/inf.conf')
+
+log = KafkaLog()
+
+localhost = conf.get('inf.local', 'host')
+
+zk = KazooClient(hosts="10.4.10.239:2181")
+zk.start()
+
+
 
 def selectModel():
-    # 配置信息
-    conf = configparser.ConfigParser()
-    conf.read('/home/huchuanwen/bishe/collaborativeDL/conf/inf.conf')
 
-    kafkaHost = conf.get("ssd.kafkaServer", "hosts")
-
-    localhost = conf.get('ssd.local', 'host')
-
-    producer = KafkaProducer(bootstrap_servers=kafkaHost)  # 连接kafka
-
-    consoleChanel = conf.get("ssd.kafkaServer", "consoleChanel")
-    zk = KazooClient(hosts="10.4.10.239:2181")
-    zk.start()
-
-
+    A = zk.get('/selectModel/param/A')
+    b = zk.get('/selectModel/param/b')
     p = zk.get('/selectModel/param/p')
 
 
-    # print(p)
-    producer.send(consoleChanel, ("INFO device " + localhost + " get model selector parameters").encode())
+
+    log.logSend("INFO device " + localhost + " get model selector parameters")
 
     p = pickle.loads(p[0])
+
+
 
     best_predicted_arm = np.argmax(p)
 
@@ -44,9 +48,16 @@ def selectModel():
 
     print(best_predicted_arm)
 
-    producer.send(consoleChanel, ("INFO device " + localhost + " select model vgg16").encode())
+    log.logSend("INFO device " + localhost + " select model vgg16")
 
     zk.stop()
+
+    N = p.size
+    x = np.arange(N)
+    label = ("VGG16","alexnet","resnet-18")
+    plt.bar(x, p, width=0.5,label="models",tick_label=label)
+    plt.legend()
+    plt.show()
 
 def inf():
 

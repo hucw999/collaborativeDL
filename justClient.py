@@ -16,27 +16,38 @@ from kazoo.client import KazooClient
 import cv2
 # 加载模型
 from PIL import Image
+from log import *
+from conf.getConf import *
+import json
+from ZK.GetDeviceInfo import getColDevice
 
-import resource
+pwd = os.path.dirname(__file__)
+host,port = getColServer()
+print(host,port)
+log = KafkaLog()
+
+with open(pwd + '/imgs/label/imagenetLabel.json') as f:
+    labels = json.load(f)
+
+
+def class_id_to_label(i):
+    return labels[i]
 
 def inf():
-    soft, hard = resource.getrlimit(resource.RLIMIT_AS)
-    print(soft, hard)
-    resource.setrlimit(resource.RLIMIT_AS, ((4 *(1024**3))  , hard))
+    # soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+    # print(soft, hard)
+    # resource.setrlimit(resource.RLIMIT_AS, ((4 *(1024**3))  , hard))
+
+
 
     model = myvgg.myVgg(part=1, st=0, ed = 18)
     # model = myresnet.myResnet18(part=1)
 
-    pth = "/home/huchuanwen/bishe/checks/vgg16-397923af.pth"
+    pth = pwd + "/ftp/test/vgg16.pth"
 
     checkpoint = torch.load(pth)
 
     model.load_state_dict(checkpoint, strict=False)
-
-    # torchvision.models.resnet18()
-
-    host = "127.0.0.1"
-    port = 8502
 
 
     class ClientInf:
@@ -45,7 +56,6 @@ def inf():
 
 
         cacheResults = {}
-
 
         def getData(self):
             # 加载数据
@@ -87,29 +97,19 @@ def inf():
                 cnt += 1
                 if cnt >= num:
                     break
-                # data, target = Variable(data, volatile=True), Variable(target)
-
             return dats,targets
 
 
         def inf(self,dat):
             # 装载模型
 
-
             with torch.no_grad():
             # 推理
-
-
 
                 model.eval()
                 output = model(dat)
 
-
-            # print(output.shape)
-            # pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-            # # correct += pred.eq(target.data.view_as(pred)).cpu().sum()
-            # print(pred)
-
+            print(output.shape)
             return output
 
 
@@ -155,7 +155,7 @@ def inf():
 
                 s.send(sendData)
 
-                time.sleep(10)
+
                 s.send(sendData)
 
                 # s.send('12'.encode())
@@ -206,7 +206,7 @@ def inf():
 
 
 
-    img = Image.open('/home/huchuanwen/bishe/collaborativeDL/imgs/test.jpg')
+    img = Image.open('imgs/test.jpg')
 
     cv2Img = cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2BGR)
 
@@ -222,21 +222,38 @@ def inf():
     proxy = Proxy(inf)
     st = time.time()
 
-
+    log.logSend("DATAFLOW " + getLocalhost() +" send data to " + host)
     label = proxy.inf(img)
 
-    import json
+    label = class_id_to_label(label)
+    log.logSend("INFO " + host + " get result "+ label)
 
-    with open('/home/huchuanwen/bishe/collaborativeDL/imgs/label/imagenetLabel.json') as f:
-        labels = json.load(f)
+    node = {
+        "longitude": 116.201929,
+        "latitude": 39.275255,
+    }
 
-    def class_id_to_label(i):
-        return labels[i]
+    node = json.dumps(node)
+    print(node)
+    notification = {"longitude": "120.2019",
+                    "latitude": "30.275255",
+                    "ip": '10.4.10.123',
+                    "category": "xxx",
+                    "captureNode": node,
+                    "targets": [label],
+                    # "date": time.time()
 
+                    }
+
+    notification = json.dumps(notification).encode()
+    from kafka import KafkaProducer, KafkaConsumer
+    producer = KafkaProducer(bootstrap_servers='10.4.10.254:9092')
+
+    producer.send("gateway", notification)
 
     COLORS = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
     FONT = cv2.FONT_HERSHEY_SIMPLEX
-    cv2.putText(cv2Img, class_id_to_label(label), (50,50),
+    cv2.putText(cv2Img, label, (50,50),
                 FONT, 1.2, (255, 255, 255), 2, cv2.LINE_AA)
 
     cv2.imshow('img',cv2Img)
@@ -247,5 +264,6 @@ def inf():
 
 
 if __name__ == '__main__':
+    getColDevice()
     inf()
 

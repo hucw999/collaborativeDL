@@ -5,9 +5,7 @@ import os
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from torchvision import datasets, transforms
-# import pickle
 import time
 import _pickle as pickle
 import sys
@@ -17,23 +15,27 @@ from kazoo.client import KazooClient
 # 加载模型
 from PIL import Image
 from cache.MyCache import LRUCache
+import redis
+from conf.getConf import *
 
 
+localhost = getLocalhost()
 model = myvgg.myVgg(part=1,st=0,ed = 18)
 # model = myresnet.myResnet18(part=1)
-
-pth = "../../checks/vgg16-397923af.pth"
+pwd = os.path.dirname(__file__)
+pth = pwd + "/../ftp/test/vgg16.pth"
 
 checkpoint = torch.load(pth)
 
-# model.load_state_dict(checkpoint)
+model.load_state_dict(checkpoint, strict = False)
 
-torchvision.models.resnet18()
+# torchvision.models.resnet18()
 
-host = "127.0.0.1"
-port = 8502
+host,port = getColServer()
 
-
+redisHost = conf.get('redis.server','host')
+redisPort = conf.get('redis.server','port')
+conn = redis.Redis(redisHost, port=redisPort)
 
 class ClientInf:
 
@@ -112,6 +114,16 @@ class ClientInf:
         return dat
 
 
+import json
+
+with open(pwd + '/../imgs/label/imagenetLabel.json') as f:
+    labels = json.load(f)
+
+
+def class_id_to_label(i):
+    return labels[i]
+
+
 # RPC远程调用
 
 
@@ -134,7 +146,7 @@ class Proxy(object):
         print('name:' + name)
 
         def newAttr(*args, **kwargs):  # 包装
-            print("before print")
+            # print("before print")
             st = time.time()
             out = attr(*args, **kwargs)
 
@@ -153,10 +165,6 @@ class Proxy(object):
 
             s.send(sendData)
 
-            # time.sleep(10)
-            # s.send(sendData)
-
-            # s.send('12'.encode())
             recvData = s.recv(1024)
 
 
@@ -170,8 +178,6 @@ class Proxy(object):
             s.close()
             ed = time.time()
             print('transfer time spent:', ed - st)
-
-            print("after print")
 
             return pred
 
@@ -199,37 +205,78 @@ if __name__ == "__main__":
 
 
     val_transforms = transforms.Compose([
-        transforms.Resize(256),
-        transforms.RandomResizedCrop(224),
+        transforms.Resize((224,224)),
+        # transforms.RandomResizedCrop(224),
         transforms.ToTensor(),
         transforms.Normalize((.5, .5, .5), (.5, .5, .5))
     ])
 
-    # for filename in os.listdir(r"../"):
-    img = Image.open('../imgs/test.jpg')
+
 
     # img = val_transforms(img)
 
     proxy = Proxy(inf)
     imgs = []
     cache = LRUCache(3)
-    for i in range(4):
-        imgs.append(val_transforms(img))
+    for filename in os.listdir(pwd+"/../imgs/"):
+
+        st = time.time()
+        if filename.endswith('.jpg') or filename.endswith('.jpeg'):
+            img = Image.open(pwd+'/../imgs/' + filename)
+        else:
+            continue
+        # imgs.append(val_transforms(img))
+
+        img = val_transforms(img)
 
 
-
-        input = torch.unsqueeze(imgs[i], dim=0).float()
+        input = torch.unsqueeze(img, dim=0).float()
         output = inf.inf(input)
+
+
 
         outKey = torch.reshape(output,(1,512*7*7))
         # print(output.shape)
 
         label = cache.get_sim(outKey)
-        print(label)
+
         if label == -1:
             label = proxy.colInf(output)
+            label = class_id_to_label(label)
+            print(label)
+            ed =time.time()
+            print('no cache ', ed-st)
             cache.put(outKey, label)
+            taskInfo = {
+                'name': localhost+":"+filename,
+                'type': 'col',
+                'startDevice': localhost,
+                'colDevice': host,
+                'cacheHit': False,
+                'latency': ed - st,
+                'target': label
+            }
+            js = json.dumps(taskInfo)
 
+            conn.lpush("dnnTasks", js)
+        else:
+            ed = time.time()
+            # label = class_id_to_label(label)
+            print(label)
+            print('with cache ',ed-st)
+
+            taskInfo = {
+                'name': localhost+":"+filename,
+                'type': 'col',
+                'startDevice': localhost,
+                'colDevice': host,
+                'cacheHit': True,
+                'latency': ed - st,
+                'target': label
+            }
+            js = json.dumps(taskInfo)
+
+            conn.lpush("dnnTasks", js)
 
 
     # proxy = Proxy(inf)

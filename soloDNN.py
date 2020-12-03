@@ -236,12 +236,8 @@ if __name__ == "__main__":
     clintInf.loadModel()
     st = time.time()
     for i in range(20):
-
-
     # for filename in os.listdir(r"imgs/"):
         img = Image.open('imgs/' + 'test.jpg')
-
-
         # if filename.endswith('.jpg') or filename.endswith('.jpeg'):
         #     img = Image.open('imgs/' + filename)
         # else:

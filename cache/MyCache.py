@@ -42,7 +42,7 @@ class LRUCache:
     def get_sim(self, key) -> int:
         """ 存在移动到末尾并返回键值，否则返回-1 """
         for tmpKey in self.lookup:
-            if self.cos_sim(key,tmpKey) >0.9:
+            if self.cos_sim(key,tmpKey) >0.99:
                 node = self.lookup[tmpKey]
                 self.delete(node)
                 self.append(node)

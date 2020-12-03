@@ -18,7 +18,7 @@ import time
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
-
+models.resnet18(True)
 
 import math
 #

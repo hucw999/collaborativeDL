@@ -35,7 +35,7 @@ for msg in consumer:
         time.sleep(1)
         # print(self.name + ' consumed ' + str(msg.value))
         consumer.commit()  # 提交当前批次最新的偏移量. 会阻塞  执行完后才会下一轮poll
-        producer.send('result', b'1')
+        producer.send('result', b'1',b'10.4.10.213')
 
     except Exception as e:
 

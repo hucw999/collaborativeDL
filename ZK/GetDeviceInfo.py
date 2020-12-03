@@ -1,29 +1,44 @@
 from kazoo.client import KazooClient
 import json
+from conf.getConf import *
+from log import KafkaLog
 
-zk = KazooClient(hosts="10.4.10.239:2181")
+log = KafkaLog()
 
-zk.start()    #与zookeeper连接
-#makepath=True是递归创建,如果不加上中间那一段，就是建立一个空的节点
+def getColDevice():
+    class server:
+        def __init__(self):
+            self.host = ''
+            self.port = 0
+            self.RAM = 0
 
-deviceInfo = {'ip':'10.4.10.194', 'port':8502}
+        def __str__(self) -> str:
+            return self.host + ' ' + str(self.port) + ' ' + str(self.RAM)
 
-deviceInfo = json.dumps(deviceInfo)
+    zk = KazooClient(hosts="10.4.10.254:2181")
 
-# zk.create('/registry/device1', deviceInfo.encode(encoding='utf-8') ,makepath=True)
+    zk.start()    #与zookeeper连接
+    #makepath=True是递归创建,如果不加上中间那一段，就是建立一个空的节点
 
-# zk.create('/registry/device2', deviceInfo.encode(encoding='utf-8') ,makepath=True)
 
-devices = zk.get_children('/registry')
+    devices = zk.get_children('/nodes')
 
-for device in devices:
-    tmpDeviceInfo = zk.get('/registry/' + device)[0].decode(encoding='utf-8')
-    port = json.loads(tmpDeviceInfo)['port']
-    print(port)
+    server = server()
+    for device in devices:
+        tmpDeviceInfo = zk.get('/nodes/' + device)[0].decode(encoding='utf-8')
+        device = json.loads(tmpDeviceInfo)
+        print(device)
+        ram = device['stats']['RAM']['tot']-device['stats']['RAM']['use']
 
-# node = zk.get('/registry/device1')[0]  # 查看根节点有多少个子节点
-#
-# device1 = json.loads(node.decode(encoding='utf-8'))
+        if ram > server.RAM:
+            server.host = device['ip']
+            server.port = device['port']
+            server.RAM = ram
 
-print(devices)
-zk.stop()
+
+    print(devices)
+    setColServer(server.host, server.port)
+    log.logSend("INFO " + getLocalhost() + " select device " + server.host)
+    zk.stop()
+
+getColDevice()

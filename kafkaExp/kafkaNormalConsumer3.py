@@ -35,11 +35,11 @@ for msg in consumer:
         time.sleep(1)
         # print(self.name + ' consumed ' + str(msg.value))
         consumer.commit()  # 提交当前批次最新的偏移量. 会阻塞  执行完后才会下一轮poll
-        producer.send('result', b'1')
-        if cnt %5 == 0:
-            consumer.unsubscribe()
-            consumer.subscribe('testyg')
-            print(consumer.assignment())
+        producer.send('result', b'1',b'10.4.10.214')
+        # if cnt %5 == 0:
+        #     consumer.unsubscribe()
+        #     consumer.subscribe('testyg')
+        #     print(consumer.assignment())
 
     except Exception as e:
 
